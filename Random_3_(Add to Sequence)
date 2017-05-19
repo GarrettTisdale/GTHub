@@ -1,0 +1,117 @@
+Base_Check = ['a','g','g','t']
+list = ["g","g","u","t","c","c","u","g","g","u","t","c","g","g","g","c","g",
+        "g","g","u","g","g","u","t","c","c","g","g","g","u","g","g","u","t",
+        "c","g","g","u","g","g","u","c","g","g","g","u","t","c","c","g","g",
+        "g","u","g","g","u","t","c","c","g","g","g","u","g","g","u","t","c",
+        "c","g"]
+
+list_temp = []
+
+# Make list into solid string
+
+
+list_temp = list
+for i in range(0,len(Base_Check)):
+    list.append("X")
+
+
+for i in range(0,len(list)):
+    find_hold = 0
+    
+    for x in range(0,len(Base_Check)):
+        if Base_Check[x] = list[i+x]:
+            find_hold = find_hold + 1
+    
+    Base_Compile = None
+    
+    for x in Base_Check:
+        Base_Compile = Base_Compile + x
+    
+    if find_hold == len(Base_Check):
+        list_temp[i] = Base_Compile
+        for x in range(1,len(Base_Check)):
+            list_temp[i+x] = 'X'
+
+
+d_Check_List = {}
+d_Check_Sequence = {}
+d_Check_Sequence_Count = {}
+
+
+d_Check_Sequence["Sequence{0}".format(0)] = Base_Check
+
+Base_Compile_0 = None
+for x in d_Check_Sequence["Sequence"+str(0)]:
+    Base_Compile_0 = Base_Compile_0 + x
+d_Check_Sequence_Count["Count{0}".format(0)] = list_temp.count(Base_Compile_0)
+
+
+count_number = 1
+
+sequence_mutaiton_number = 1
+
+
+d_Check_List["Check{0}".format(0)] = Base_Check
+
+
+list_of_sequences = ["Check"+str(0)]
+list_of_temp_sequences = []
+total_files_count = 1
+
+for m in range(0,5)
+    for x in list_of_sequences:
+        d_Check_List["Check{0}".format(total_files_count)] = d_Check_List[x].append("a")
+        list_of_temp_sequences.append("Check"+str(total_files_count))
+        total_files_count = total_files_count + 1
+        
+        d_Check_List["Check{0}".format(total_files_count)] = d_Check_List[x].append("g")
+        list_of_temp_sequences.append("Check"+str(total_files_count))
+        total_files_count = total_files_count + 1
+        
+        d_Check_List["Check{0}".format(total_files_count)] = d_Check_List[x].append("t")
+        list_of_temp_sequences.append("Check"+str(total_files_count))
+        total_files_count = total_files_count + 1
+        
+        d_Check_List["Check{0}".format(total_files_count)] = d_Check_List[x].append("c")
+        list_of_temp_sequences.append("Check"+str(total_files_count))
+        total_files_count = total_files_count + 1
+        
+    list_of_sequences = []
+    list_of_sequences = list_of_temp_sequences
+    list_of_temp_sequences = []
+            
+
+for i in range(0,len(d_Check_List.has_key())):
+    
+    list_temp = list            
+    d_Check_Sequence["Sequence{0}".format(count_number)] = d_Check_List["Check"+str(x)]
+    
+    for y in range(0,len(d_Check_Sequence["Sequence"+str(count_number)])):
+        list.append("X")
+        
+    for y in range(0,len(list)):
+        find_hold = 0
+        
+        for z in range(0,len(d_Check_Sequence["Sequence"+str(count_number)])):
+            if d_Check_Sequence["Sequence"+str(count_number)][z] == list[y+z]:
+                find_hold = find_hold + 1
+            
+                
+        Base_Compile = None
+                
+        for z in d_Check_Sequence["Sequence"+str(count_number)]:
+            Base_Compile = Base_Compile + z
+                
+        if find_hold == len(d_Check_Sequence["Sequence"+str(count_number)]):
+            list_temp[y] = Base_Compile
+            for z in range(1,len(d_Check_Sequence["Sequence"+str(count_number)])):
+                list_temp[y+z] = 'X'
+            
+            
+        Compile_0 = None
+        for y in d_Check_Sequence["Sequence"+str(count_number)]:
+            Compile_0 = Compile_0 + y
+            
+        d_Check_Sequence_Count["Count{0}".format(count_number)] = list_temp.count(Compile_0)
+        count_number = count_number + 1
+
