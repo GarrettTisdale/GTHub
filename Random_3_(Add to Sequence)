@@ -1,9 +1,14 @@
 Base_Check = ['a', 'g', 'g']
-list = ["g", "g", "u", "t", "c", "c", "u", "g", "g", "u", "t", "c", "g", "g", "g", "c", "g",
-        "g", "g", 'a', 'g', 'g', 't', "t", "c", "c", "g", "g", "g", "u", "g", "g", "u", "t",
-        "c", "g", "g", "u", "g", "g", "u", 'a', 'g', 'g', 't', "g", "u", "t", "c", "c", "g", "g",
-        "g", "u",'a', 'g', 'g', 't', 'a', 'g', 'g', 't', "u", "t", "c", "c", "g", "g", "g", "u", "g", "g", "u", "t", "c",
-        "c", "g"'a', 'g', 'g', 't']
+
+file_hold = []
+
+file = open(, 'r')
+
+list = []
+
+for i in file:
+    for x in i:
+        list.append(x)
 
 list_temp = []
 
@@ -54,10 +59,12 @@ d_Check_List["Check{0}".format(0)] = Base_Check
 list_of_sequences = ["Check" + str(0)]
 list_of_temp_sequences = []
 total_files_count = 1
+even_odd = 1
 
-print len(list_of_sequences)
+method = 3
 
-for m in range(0, 6):
+
+for m in range(0, 3):
     for x in range(0, len(list_of_sequences)):
         z = []
         a = []
@@ -71,17 +78,44 @@ for m in range(0, 6):
             g.append(d_Check_List[list_of_sequences[x]][i])
             t.append(d_Check_List[list_of_sequences[x]][i])
             c.append(d_Check_List[list_of_sequences[x]][i])
+            print a
+
 
             if i == len(d_Check_List[list_of_sequences[x]])-1:
-                a.append("a")
-                g.append("g")
-                t.append("t")
-                c.append("c")
+                if method == 0:
+                    a = ["a"] + a
+                    g = ["g"] + g
+                    t = ["t"] + t
+                    c = ["c"] + c
+                    print a
+                    print "Odd"
+                    
+                if method == 1:
+                    if even_odd % 2 == 0:
+                        a.append("a")
+                        g.append("g")
+                        t.append("t")
+                        c.append("c")
+                        print a
+                        print "Even"
+                    if even_odd % 2 == 1:
+                        a = ["a"] + a
+                        g = ["g"] + g
+                        t = ["t"] + t
+                        c = ["c"] + c
+                        print a
+                        print "Odd"
+                    
+                    even_odd = even_odd + 1
+                
+                if method == 3:
+                    a.append("a")
+                    g.append("g")
+                    t.append("t")
+                    c.append("c")
+                    print a
+                    print "Even"
 
-        print a
-        print g
-        print t
-        print c
 
         d_Check_List["Check{0}".format(total_files_count)] = a
         list_of_temp_sequences.append("Check" + str(total_files_count))
@@ -100,7 +134,6 @@ for m in range(0, 6):
         total_files_count = total_files_count + 1
 
     list_of_sequences = []
-    print list_of_temp_sequences
     for i in list_of_temp_sequences:
         list_of_sequences.append(i)
 
@@ -109,6 +142,7 @@ for m in range(0, 6):
 print len(d_Check_List)
 
 for i in range(1, len(d_Check_List)):
+    print i
     list_temp = []
 
     for x in list:
@@ -143,4 +177,4 @@ for i in range(1, len(d_Check_List)):
 
         d_Check_Sequence_Count["Count{0}".format(i)] = list_temp.count(Compile_0)
 
-print d_Check_Sequence_Count["Count" + str(0)], d_Check_Sequence_Count["Count" + str(3)],d_Check_Sequence_Count["Count" + str(4)]
+print d_Check_Sequence_Count["Count" + str(0)], d_Check_Sequence_Count["Count" + str(1)], d_Check_Sequence_Count["Count" + str(2)], d_Check_Sequence_Count["Count" + str(3)], d_Check_Sequence_Count["Count" + str(4)]
