@@ -1,0 +1,98 @@
+```{r}
+rm(list=ls())
+set.seed(45)
+
+library(rnn)
+require(ggplot2)
+require(h2o)
+
+
+data.trace = read.csv("RNN_Data_Lists.csv")
+data.hmm = read.csv("RNN_HMM_Lists.csv")
+
+```
+
+```{r, message=FALSE}
+intensity = data.trace[,1][1:length(which(!is.na(data.trace[,1])))]
+hmm = data.hmm[,1][1:length(which(!is.na(data.hmm[,1])))]
+
+
+intensity.norm = (intensity - min(intensity)) / (max(intensity) - min(intensity))
+hmm.norm = (hmm - min(hmm)) / (max(hmm) - min(hmm))
+
+for (i in seq(2,length(data.trace[1,]),1)){
+  temp1 = data.trace[,i][1:length(which(!is.na(data.trace[,i])))]
+  temp2 = data.hmm[,i][1:length(which(!is.na(data.hmm[,i])))]
+
+  temp1.norm = (temp1 - min(temp1)) / (max(temp1) - min(temp1))
+  temp2.norm = (temp2 - min(temp2)) / (max(temp2) - min(temp2))
+  
+  intensity.norm = c(intensity.norm, temp1.norm)
+  hmm.norm = c(hmm.norm, temp2.norm)
+}
+
+
+
+
+
+
+X = rbind(intensity.norm)
+Y = rbind(hmm.norm)
+
+```
+
+
+```{r}
+plot(seq(1,length(intensity.norm[1:1000]),1), intensity.norm[1:1000], type="l", col="blue")
+lines(seq(1,length(hmm.norm[1:1000]),1), hmm.norm[1:1000], col="red")
+```
+
+
+```{r}
+require(parallel)
+cl <- makeCluster(3)
+
+#Training
+X.train = rbind(X[1:6000])
+Y.train = rbind(Y[1:6000])
+
+rnn1_1 = trainr(X = X.train,
+                Y = Y.train,
+                learningrate = .001,
+                hidden_dim = 5,
+                numepochs = 1500)
+
+plot(colMeans(rnn1_1$error),type='l',
+     xlab='epoch',
+     ylab='errors')                  
+
+stopCluster(cl)
+
+
+```
+
+
+```{r}
+range.1 = 9001
+range.2 = 10000
+X.test = rbind(X[range.1:range.2])
+Y.test = rbind(Y[range.1:range.2])
+
+
+
+
+
+predict.results = predictr(rnn1_1, X.test)
+
+
+png(paste(paste(range.1,paste(" - ",range.2)),".png"), width=1500, height=800)
+
+
+plot(seq(1,length(X.test),1), X.test, main=paste(range.1,paste(" - ",range.2)))
+lines(seq(1,length(Y.test),1), Y.test)
+lines(seq(1,length(predict.results),1), predict.results, col="red")
+
+
+```
+
+
