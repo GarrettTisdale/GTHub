@@ -13,6 +13,8 @@ require(clusterSim)
 require(cluster)
 require(TTR)
 require(RSNNS)
+require(foreach)
+
 
 int.polation = 100
 win.size = round(int.polation*.06)
@@ -20,7 +22,7 @@ win.size2 = 25
 cluster.try = 3
 
 
-name.ofTest = 'C:\\Users\\tisdalege\\Desktop\\Reorganized Data\\1_Workspace\\DTW_Workspace_Results\\FullTest_'
+name.ofTest = 'C:\\Users\\Garrett\\Desktop\\1_Workspace\\DTW_Workspace_Results\\FullTest_'
 name.count = "_Number_of_sets_per_cluster_"
 
 
@@ -42,31 +44,69 @@ function1.result = function(x, save){
   result = matrix(data=NA, nrow = length(data.matrix[1,]), ncol = length(data[1,]))
   
   for (i in 1:length(data.matrix[1,])) { 
-  for (j in 1:length(data.matrix[1,])) {
-    if (j >= i){
-      next
+    for (j in 1:length(data.matrix[1,])) {
+      if (j >= i){
+        next
+      }
+      G1 = data.matrix[,i][1:length(which(!is.na(data.matrix[,i])))]
+      G2 = data.matrix[,j][1:length(which(!is.na(data.matrix[,j])))]
+      
+      
+      G1 = approx(seq(1,length(G1),1), y = G1, method="linear", n=int.polation,rule = 2, f = 1, ties = mean)
+      G2 = approx(seq(1,length(G2),1), y = G2, method="linear", n=int.polation,rule = 2, f = 1, ties = mean)
+      
+      G1.x = G1$x
+      G1.y = G1$y
+  
+      G2.x = G2$x
+      G2.y = G2$y
+  
+      a = dtw(G1.y,G2.y,dist.method="Euclidean",step=symmetric1, keep=TRUE, window.type=slantedBandWindow,window.size=win.size)
+      
+      
+      result[i,j]= a$distance
     }
-    G1 = data.matrix[,i][1:length(which(!is.na(data.matrix[,i])))]
-    G2 = data.matrix[,j][1:length(which(!is.na(data.matrix[,j])))]
-    
-    
-    G1 = approx(seq(1,length(G1),1), y = G1, method="linear", n=int.polation,rule = 2, f = 1, ties = mean)
-    G2 = approx(seq(1,length(G2),1), y = G2, method="linear", n=int.polation,rule = 2, f = 1, ties = mean)
-    
-    G1.x = G1$x
-    G1.y = G1$y
-
-    G2.x = G2$x
-    G2.y = G2$y
-
-    a = dtw(G1.y,G2.y,dist.method="Euclidean",step=symmetric1, keep=TRUE, window.type=slantedBandWindow,window.size=win.size)
-    
-    
-    result[i,j]= a$distance
-  }
   }
     save(result, file=save)
   return(result)
+}
+
+
+
+#### Furture work could make this process faster with parallel processing --Frame work provided--
+#### Check Processor Usage When Running This Code!!! Be weary not to max out cup usage as it can cause damgage!!!
+function1.1.result = function(x, save){
+  
+  data.matrix = x
+  
+    
+  foreach(i=1:length(data.matrix[1,]), .combine = 'cbind') %:%
+    foreach(j=1:length(data.matrix[1,]), .export=c("int.polation", "win.size"), .packages='dtw', .combine = 'c') %dopar% {
+      if (j <= i){
+        NA
+      }
+      
+      
+      else{
+        G1 = data.matrix[,i][1:length(which(!is.na(data.matrix[,i])))]
+        G2 = data.matrix[,j][1:length(which(!is.na(data.matrix[,j])))]
+        
+        
+        G1 = approx(seq(1,length(G1),1), y = G1, method="linear", n=int.polation,rule = 2, f = 1, ties = mean)
+        G2 = approx(seq(1,length(G2),1), y = G2, method="linear", n=int.polation,rule = 2, f = 1, ties = mean)
+        
+        G1.x = G1$x
+        G1.y = G1$y
+    
+        G2.x = G2$x
+        G2.y = G2$y
+    
+        a = dtw(G1.y,G2.y,dist.method="Euclidean",step=symmetric1, keep=TRUE, window.type=slantedBandWindow,window.size=win.size)
+        
+        
+       a$distance
+    }
+  }
 }
 
 
@@ -112,10 +152,12 @@ function3.MatrixNormalize = function(x) {
 
 
 ################Write Kc File################
-function4.kcWrite = function(x, name1, name2){
+function4.kcWrite = function(x, data, name1, name2){
+  kc = x
+  data = data
   file.name1 = name1
   file.name2 = name2
-  kc = x
+
   
   table.replace1 = t(rbind(colnames(data)[1], kc$cluster[[1]]))
   
@@ -308,10 +350,18 @@ data = read.csv("Data_Matrix_Combind_All.csv", header=TRUE)
 
 tic=proc.time()[3]
 save1 = paste(name.ofTest,paste("initial_results",".RData",sep=""),sep="")
-#result = function1.result(data, save1)
+result = function1.result(data, save1)
 tic.stop=proc.time()[3] - tic
-time = tic.stop
-time
+time1 = tic.stop
+time1
+
+
+# tic=proc.time()[3]
+# save1 = paste(name.ofTest,paste("initial_resultsTest",".RData",sep=""),sep="")
+# result1.1 = function1.1.result(data, save1)
+# tic.stop=proc.time()[3] - tic
+# time2 = tic.stop
+# time2
 
 
 mat = function2.mat(result)
@@ -330,7 +380,7 @@ plot(hc.c)#, hang=-1
 hold = c()
 
 for(i in seq(1:15)){
-  y = kmeans(mat, i, nstart=25)$tot.withinss
+  y = kmeans(mat, i, nstart=5)$tot.withinss
   hold = c(hold,y)
 }
 
@@ -339,14 +389,10 @@ num.clust = function8.FindNumberOfClusters(seq(1:length(hold)),hold)[1]
 
 kc = kmeans(mat,num.clust)
 
-kc
-#kc$cluster
-kc$size
-kc$withinss
 
-k.max = 10
+k.max = 15
 
-wss <- sapply(1:k.max, function(k){kmeans(mat, k, nstart=25)$tot.withinss})
+wss <- sapply(1:k.max, function(k){kmeans(mat, k, nstart=5)$tot.withinss})
 
 
 png(paste(name.ofTest, "K-Means within sum of squares.png", sep=""), width=750, height=500)
@@ -365,14 +411,7 @@ plot(1:k.max, wss,
 
 
 #Creating KCFiles
-hold = c()
-
-for(i in seq(1:15)){
-  y = kmeans(mat, i, nstart=25)$tot.withinss
-  hold = c(hold,y)
-}
-
-number.ofClusters1 = function8.FindNumberOfClusters(seq(1:length(hold)),hold)[1]
+number.ofClusters1 = num.clust
 
 
 kc = kmeans(mat,number.ofClusters1)
@@ -381,7 +420,7 @@ kc$size
 
 name.kcinit1 = paste(name.ofTest, paste("kc_", number.ofClusters1, sep=""),sep="")
 name.temp = paste(name.kcinit1, name.count, sep="")
-function4.kcWrite(kc, name.temp, name.kcinit1)
+function4.kcWrite(kc, data, name.temp, name.kcinit1)
 
 
 #Creating Averages
@@ -395,7 +434,7 @@ function5.GraphAverage(data, temp.name1, temp.name2)
 
 
 ```{r}
-
+continued.count = 0
 for(q in seq(1,number.ofClusters1)){
   print(q)
   temp.name1 = paste(name.kcinit1,".txt",sep="")
@@ -407,26 +446,32 @@ for(q in seq(1,number.ofClusters1)){
   
   count = read.table(temp.name2)
   
+  
   if(q == 1){
     m = 1
     l = count[q,]
+    continued.count = l
   }
   if(q == number.ofClusters1){
-    m = count[q-1,]+1
-    l = length(clusterData[,1])
+    m = continued.count + 1
+    l = length(clusterData[1,])
   }
   if(q != 1){
     if(q != number.ofClusters1){
-      m = count[q-1,]+1
-      l = count[q-1,]+count[q,]
+      m = continued.count + 1
+      l = continued.count + count[q,]
+      continued.count = l
     }
   }
 
+  
   rm(temp.clusterData)
   temp.clusterData = matrix(data=NA, nrow=length(clusterData[,1]), ncol=length(m:l))
-  for(i in seq(m:l)){
-    temp.clusterData[,i] = clusterData[,i]
-  }
+  
+  
+  temp.clusterData[,1:length(m:l)] = clusterData[,m:l]
+  
+  
   colnames(temp.clusterData) = colnames(clusterData)[m:l]
   result.c10 = matrix(data=NA, nrow = length(temp.clusterData[1,]), ncol = length(temp.clusterData[1,]))
   
@@ -466,7 +511,7 @@ for(q in seq(1,number.ofClusters1)){
   
   
   for(i in seq(1:min.kmeans)){
-    y = kmeans(mat.c10, i, nstart=25)$tot.withinss
+    y = kmeans(mat.c10, i, nstart=5)$tot.withinss
     hold = c(hold,y)
   }
   
@@ -482,7 +527,7 @@ for(q in seq(1,number.ofClusters1)){
   
   name.kcinit2 = paste(name.ofTest, paste("kc_stage2_Cluster-",paste(q,paste("_New_Clusters-", number.ofClusters2, sep=""),sep=""),sep=""),sep="")
   
-  function4.kcWrite(kc, name.temp, name.kcinit2)
+  function4.kcWrite(kc, temp.clusterData, name.temp, name.kcinit2)
     
     
     
@@ -497,10 +542,4 @@ for(q in seq(1,number.ofClusters1)){
 }
 
 ```
-
-
-
-
-
-
 
