@@ -1,0 +1,547 @@
+
+```{r}
+
+rm(list=ls())
+
+set.seed(12347)
+
+require(dtwclust)
+require(TSclust)
+require(TSdist)
+require(dtw)
+require(clusterSim)
+require(cluster)
+require(TTR)
+require(RSNNS)
+require(foreach)
+
+
+int.polation = 100
+win.size = round(int.polation*.06)
+win.size2 = 25
+cluster.try = 3
+
+
+name.ofTest = 'C:\\Users\\tisdalege\\Desktop\\Reorganized Data\\1_Workspace\\DTW_Workspace_Results_2\\FullTest_'
+name.count = "_Number_of_sets_per_cluster_"
+
+
+name.dendrogram = paste("Dendrogram_int",paste(int.polation,paste("_win",paste(win.size,".png",sep=""), sep = ""), sep = ""), sep = "")
+
+name.clustering = paste("Cluster_Images_",paste(int.polation,paste("_win",paste(win.size,".png",sep=""), sep = ""), sep = ""), sep = "")
+
+```
+
+
+
+
+```{r}
+################DTW Results################
+function1.result = function(x, save){
+  
+  data.matrix = x
+  
+  result = matrix(data=NA, nrow = length(data.matrix[1,]), ncol = length(data[1,]))
+  
+  for (i in 1:length(data.matrix[1,])) { 
+    for (j in 1:length(data.matrix[1,])) {
+      if (j >= i){
+        next
+      }
+      G1 = data.matrix[,i][1:length(which(!is.na(data.matrix[,i])))]
+      G2 = data.matrix[,j][1:length(which(!is.na(data.matrix[,j])))]
+      
+      
+      G1 = approx(seq(1,length(G1),1), y = G1, method="linear", n=int.polation,rule = 2, f = 1, ties = mean)
+      G2 = approx(seq(1,length(G2),1), y = G2, method="linear", n=int.polation,rule = 2, f = 1, ties = mean)
+      
+      G1.x = G1$x
+      G1.y = G1$y
+  
+      G2.x = G2$x
+      G2.y = G2$y
+  
+      a = dtw(G1.y,G2.y,dist.method="Euclidean",step=symmetric1, keep=TRUE, window.type=slantedBandWindow,window.size=win.size)
+      
+      
+      result[i,j]= a$distance
+    }
+  }
+    save(result, file=save)
+  return(result)
+}
+
+
+
+#### Furture work could make this process faster with parallel processing --Frame work provided--
+#### Check Processor Usage When Running This Code!!! Be weary not to max out cup usage as it can cause damgage!!!
+function1.1.result = function(x, save){
+  
+  data.matrix = x
+  
+    
+  foreach(i=1:length(data.matrix[1,]), .combine = 'cbind') %:%
+    foreach(j=1:length(data.matrix[1,]), .export=c("int.polation", "win.size"), .packages='dtw', .combine = 'c') %dopar% {
+      if (j <= i){
+        NA
+      }
+      
+      
+      else{
+        G1 = data.matrix[,i][1:length(which(!is.na(data.matrix[,i])))]
+        G2 = data.matrix[,j][1:length(which(!is.na(data.matrix[,j])))]
+        
+        
+        G1 = approx(seq(1,length(G1),1), y = G1, method="linear", n=int.polation,rule = 2, f = 1, ties = mean)
+        G2 = approx(seq(1,length(G2),1), y = G2, method="linear", n=int.polation,rule = 2, f = 1, ties = mean)
+        
+        G1.x = G1$x
+        G1.y = G1$y
+    
+        G2.x = G2$x
+        G2.y = G2$y
+    
+        a = dtw(G1.y,G2.y,dist.method="Euclidean",step=symmetric1, keep=TRUE, window.type=slantedBandWindow,window.size=win.size)
+        
+        
+       a$distance
+    }
+  }
+}
+
+
+################Reorganize Matrix################
+function2.mat = function(x){
+  result = x
+  
+  mat = matrix(0, ncol = length(result[1,]), nrow = length(result[, 1]))
+  mat.temp = NULL
+  
+  
+  for (i in 1:length(result[1, ])) {
+  total_length = length(result[, i])
+  part_length = length(which(!is.na(result[, i])))
+  
+  row.data = result[, i][!is.na(result[, i])]
+  
+  mat.temp = c(mat.temp, row.data)
+  }
+  
+  
+  mat[lower.tri(mat)] = mat.temp
+  mat = as.dist(mat)
+  
+  
+  return(mat)
+}
+
+
+################Normalize################
+function3.MatrixNormalize = function(x) {
+  data = x
+  for (i in 1:length((data[1,]))) {
+    f = data[, i][1:length(which(!is.na(data[, i])))]
+    data.norm <-
+    data.Normalization(f, type = "n4", normalization = "column")
+    dist.f = length(data[, i]) - length(which(!is.na(data[, i])))
+    data.norm = c(data.norm, matrix(data = NA,nrow = 1,ncol = dist.f))
+    data[,i] = data.norm
+  }
+  return(data)
+}
+
+
+################Write Kc File################
+function4.kcWrite = function(x, data, name1, name2){
+  kc = x
+  data = data
+  file.name1 = name1
+  file.name2 = name2
+
+  
+  table.replace1 = t(rbind(colnames(data)[1], kc$cluster[[1]]))
+  
+  for (i in 1:length(kc$cluster)) {
+  table.replace2 = t(rbind(colnames(data)[i], kc$cluster[[i]]))
+  table.replace1 = rbind(table.replace1, table.replace2)
+  }
+  
+  
+  write.matrix(kc$size, file = paste(file.name1, ".txt", sep=""))
+  write.matrix(table.replace1, file = paste(file.name2,".txt",sep=""))
+}
+
+
+################Create Average DTW################
+function5.GraphAverage = function(x, name1, name2){
+  data = x
+  table = read.table(name1)
+
+png(name2, width=750, height=500)
+
+table = table[2:length(table[,1]),]
+
+roundUpNice <- function(x, nice=c(1,2,4,6,8,10)) {
+    if(length(x) != 1) stop("'x' must be of length 1")
+    10^floor(log10(x)) * nice[[which(x <= 10^floor(log10(x)) * nice)[[1]]]]
+}
+
+par(mfrow=c(2,roundUpNice(max(table[,2]))/2))
+
+marker = 0
+
+
+for (x in seq(1,max(table[,2]),1)){
+  cluster.number = x
+  clear.check = 1
+
+  for (i in seq(1:length(table[,1]))){
+    if (cluster.number == table[i,2]){
+      if (clear.check != 1){
+        G1 = data[,i][1:length(which(!is.na(data[,i])))]
+
+        X1 = seq(1,length(G1),1)
+        G1 = approx(seq(1,length(G1),1), y = G1, method="linear", n=int.polation,rule = 2, f = 1, ties = mean)
+        cluster.list = cbind(cluster.list,G1$y)
+      }
+    
+      if (clear.check == 1){
+        G1 = data[,i][1:length(which(!is.na(data[,i])))]
+
+        X1 = seq(1,length(G1),1)
+        G1 = approx(seq(1,length(G1),1), y = G1, method="linear", n=int.polation,rule = 2, f = 1, ties = mean)
+        cluster.list = matrix(G1$y)
+        clear.check = 2
+      }
+    } 
+  }
+    
+  DBA = DBA(t(cluster.list),step=symmetric1, keep=TRUE,window.type=slantedBandWindow,window.size=win.size)
+  
+  
+  
+  if (marker == 0){
+    data.forward = matrix(data=NA, nrow = int.polation ,ncol= max(table[,2]))
+    data.forward[,x] = DBA
+    marker = 1
+  }
+  
+  if (marker == 1){
+    data.forward[,x] = DBA
+  }
+    
+  DBA = SMA(DBA,n=5)
+    
+  plot(seq(1,length(DBA),1),main=paste("Cluster ",cluster.number),DBA,type="l",col="blue",xlab=paste("Number of Sets in Cluster:  ",kc$size[x]), ylab="Normalized Fluorescence Intensity",cex.lab=1.25)
+}
+
+dev.off()
+}
+
+################Organize Matrix by Cluster################
+function6.OrganizeMatrixByCluster = function(x, name1, name2){
+  data = x
+  
+  table = read.table(name1)
+  table = table[2:length(table[,1]),]
+  count = read.table(name2)
+  
+  marker = 0
+  
+  
+  
+  
+  DataRow = length(data[,1])
+  DataCol = length(data[1,])
+  
+  clusterData = matrix(data=NA, nrow = DataRow, ncol = DataCol)
+  
+  append.before = 1
+  col.count = 1
+  col.namesfinal = c()
+  
+  for (x in seq(1,max(table[,2]),1)){
+    cluster.number = x
+    clear.check = 1
+  
+    for (i in seq(1:length(table[,1]))){
+      if (cluster.number == table[i,2]){
+        if (clear.check != 1){
+          f = data[,i]
+  
+          cluster.list = cbind(cluster.list,f)
+          col.names = c(col.names,colnames(data)[i])
+        }
+      
+        if (clear.check == 1){
+          f = data[,i]
+  
+          cluster.list = matrix(f)
+          col.names = c(colnames(data)[i])
+          clear.check = 2
+        }
+      }
+    }
+    
+    for(i in seq(1:length(cluster.list[1,]))){
+      clusterData[,col.count] = cluster.list[,i]
+      col.count = col.count+1
+    }
+    
+    col.namesfinal = c(col.namesfinal,col.names)
+    
+    append.before = length(cluster.list[1,])
+  }
+  
+  colnames(clusterData) = col.namesfinal
+  
+  return(clusterData)
+}
+
+
+################Create Dendrogram Picture################
+function7.DendrogramPicture = function(name, mat){
+  mat = mat
+  
+  png(name,width = 750,height = 500)  
+  hc.c = hclust(mat)
+  par(cex = .5)
+  plot(hc.c)#, hang=-1
+
+  dev.off()
+}
+
+
+################Find the Optimal Number of Clusters################
+###From: https://stackoverflow.com/questions/2018178/finding-the-best
+######## -trade-off-point-on-a-curve
+function8.FindNumberOfClusters <- function(x_values, y_values) {
+  # Max values to create line
+  max_x_x <- max(x_values)
+  max_x_y <- y_values[which.max(x_values)]
+  max_y_y <- max(y_values)
+  max_y_x <- x_values[which.max(y_values)]
+  max_df <- data.frame(x = c(max_y_x, max_x_x), y = c(max_y_y, max_x_y))
+
+  # Creating straight line between the max values
+  fit <- lm(max_df$y ~ max_df$x)
+
+  # Distance from point to line
+  distances <- c()
+  for(i in 1:length(x_values)) {
+    distances <- c(distances, abs(coef(fit)[2]*x_values[i] - y_values[i] + coef(fit)[1]) / sqrt(coef(fit)[2]^2 + 1^2))
+  }
+
+  # Max distance point
+  x_max_dist <- x_values[which.max(distances)]
+  y_max_dist <- y_values[which.max(distances)]
+
+  return(c(x_max_dist, y_max_dist))
+}
+
+```
+
+
+
+```{r, message=FALSE}
+
+data = read.csv("Data_Matrix_Combind_All.csv", header=TRUE)
+
+
+tic=proc.time()[3]
+save1 = paste(name.ofTest,paste("initial_results",".RData",sep=""),sep="")
+result = function1.result(data, save1)
+tic.stop=proc.time()[3] - tic
+time1 = tic.stop
+time1
+
+
+# tic=proc.time()[3]
+# save1 = paste(name.ofTest,paste("initial_resultsTest",".RData",sep=""),sep="")
+# result1.1 = function1.1.result(data, save1)
+# tic.stop=proc.time()[3] - tic
+# time2 = tic.stop
+# time2
+
+
+mat = function2.mat(result)
+
+
+name.temp = paste(name.ofTest,paste("initial_results_",name.dendrogram,sep=""),sep="")
+
+function7.DendrogramPicture(name.temp,mat)
+
+hc.c = hclust(mat)
+par(cex=.5)
+plot(hc.c)#, hang=-1
+
+
+#####Data for viewing the resutls by eye
+hold = c()
+
+for(i in seq(1:15)){
+  y = kmeans(mat, i, nstart=25)$tot.withinss
+  hold = c(hold,y)
+}
+
+num.clust = function8.FindNumberOfClusters(seq(1:length(hold)),hold)[1]
+
+
+kc = kmeans(mat,num.clust)
+
+
+k.max = 15
+
+wss <- sapply(1:k.max, function(k){kmeans(mat, k, nstart=25)$tot.withinss})
+
+
+png(paste(name.ofTest, "K-Means within sum of squares.png", sep=""), width=750, height=500)
+
+plot(1:k.max, wss,
+     type="b", pch = 19, frame = FALSE, 
+     xlab="Number of clusters K",
+     ylab="Total within-clusters sum of squares")
+
+dev.off()
+
+plot(1:k.max, wss,
+     type="b", pch = 19, frame = FALSE, 
+     xlab="Number of clusters K",
+     ylab="Total within-clusters sum of squares")
+
+
+#Creating KCFiles
+number.ofClusters1 = num.clust
+
+
+kc = kmeans(mat,number.ofClusters1)
+
+kc$size
+
+name.kcinit1 = paste(name.ofTest, paste("kc_", number.ofClusters1, sep=""),sep="")
+name.temp = paste(name.kcinit1, name.count, sep="")
+function4.kcWrite(kc, data, name.temp, name.kcinit1)
+
+
+#Creating Averages
+temp.name1 = paste(name.kcinit1,".txt",sep="")
+temp.name2 = paste(name.ofTest,paste("initial_results_",name.clustering,sep=""),sep="")
+
+function5.GraphAverage(data, temp.name1, temp.name2)
+
+```
+
+
+
+```{r}
+continued.count = 0
+
+
+for(q in seq(1,number.ofClusters1)){
+  print(q)
+  temp.name1 = paste(name.kcinit1,".txt",sep="")
+  temp.name2 = paste(name.kcinit1, paste(name.count, ".txt", sep=""), sep="")
+  
+  clusterData = function6.OrganizeMatrixByCluster(data, temp.name1, temp.name2)
+
+
+  
+  count = read.table(temp.name2)
+  
+  
+  if(q == 1){
+    m = 1
+    l = count[q,]
+    continued.count = l
+  }
+  if(q == number.ofClusters1){
+    m = continued.count + 1
+    l = length(clusterData[1,])
+  }
+  if(q != 1){
+    if(q != number.ofClusters1){
+      m = continued.count + 1
+      l = continued.count + count[q,]
+      continued.count = l
+    }
+  }
+
+  
+  rm(temp.clusterData)
+  temp.clusterData = matrix(data=NA, nrow=length(clusterData[,1]), ncol=length(m:l))
+  
+  
+  temp.clusterData[,1:length(m:l)] = clusterData[,m:l]
+  
+  
+  colnames(temp.clusterData) = colnames(clusterData)[m:l]
+  result.c10 = matrix(data=NA, nrow = length(temp.clusterData[1,]), ncol = length(temp.clusterData[1,]))
+  
+  
+  temp.clusterData = function3.MatrixNormalize(temp.clusterData)
+  
+  
+  
+  tic=proc.time()[3]
+  save2 = paste(name.ofTest, paste("c10",".RData" ,sep=""), sep="")
+  result.c10 = function1.result(temp.clusterData, save2)
+  tic.stop=proc.time()[3] - tic
+  time = tic.stop
+  time
+  
+  
+  mat.c10 = function2.mat(result.c10)
+  
+  graph.name = paste(name.ofTest,paste("kc_stage2_Cluster-",paste(q,paste("_",name.dendrogram, sep=""),sep=""),sep=""),sep="")
+  function7.DendrogramPicture(graph.name,mat.c10)
+  
+  hc.c10 = hclust(mat.c10)
+  par(cex=.5)
+  plot(hc.c10)
+  
+  
+  #####Create KCFiles
+  hold = c()
+
+  if(length(temp.clusterData[1,]) < 15){
+    min.kmeans = length(temp.clusterData[1,])-1
+  }
+  
+  if(length(temp.clusterData[1,]) > 15){
+    min.kmeans = 15
+  }
+  
+  
+  for(i in seq(1:min.kmeans)){
+    y = kmeans(mat.c10, i, nstart=25)$tot.withinss
+    hold = c(hold,y)
+  }
+  
+  number.ofClusters2 = function8.FindNumberOfClusters(seq(1:length(hold)),hold)[1]
+  
+  
+  kc = kmeans(mat.c10,number.ofClusters2)
+  
+  print(kc)
+  
+  name.kcinit2 = paste(name.ofTest, paste("kc_stage2_Cluster-",paste(q,paste("_New_Clusters-",number.ofClusters2, sep=""),sep=""),sep=""),sep="")
+  name.temp = paste(name.kcinit2, name.count, sep="")
+  
+  name.kcinit2 = paste(name.ofTest, paste("kc_stage2_Cluster-",paste(q,paste("_New_Clusters-", number.ofClusters2, sep=""),sep=""),sep=""),sep="")
+  
+  function4.kcWrite(kc, temp.clusterData, name.temp, name.kcinit2)
+    
+    
+    
+  #####Create Averages
+  name.kcinit2 = paste(name.ofTest, paste("kc_stage2_Cluster-",paste(q,paste("_New_Clusters-",number.ofClusters2,".txt",sep=""),sep=""), sep=""),sep="")
+  
+  name.temp1 = name.kcinit2
+  name.temp2 = paste(name.ofTest,paste("kc_stage2_Cluster-",paste(q,paste("_",name.clustering,sep=""),sep=""),sep=""),sep="")
+  
+  
+  function5.GraphAverage(temp.clusterData, name.temp1, name.temp2)  
+}
+
+```
+
