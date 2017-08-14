@@ -1,0 +1,452 @@
+#rScript.Rmd
+#Programmer: Garrett E. Tisdale
+
+
+```{r}
+#Sets random number generator
+set.seed(12345)
+
+
+#Installs necessary packages
+if("dtwclust" %in% rownames(installed.packages()) == FALSE) {install.packages("dtwclust")}
+if("TSclust" %in% rownames(installed.packages()) == FALSE) {install.packages("TSclust")}
+if("TSdist" %in% rownames(installed.packages()) == FALSE) {install.packages("TSdist")}
+if("dtw" %in% rownames(installed.packages()) == FALSE) {install.packages("dtw")}
+if("clusterSim" %in% rownames(installed.packages()) == FALSE) {install.packages("clusterSim")}
+if("cluster" %in% rownames(installed.packages()) == FALSE) {install.packages("cluster")}
+if("TTR" %in% rownames(installed.packages()) == FALSE) {install.packages("TTR")}
+if("RSNNS" %in% rownames(installed.packages()) == FALSE) {install.packages("RSNNS")}
+if("foreach" %in% rownames(installed.packages()) == FALSE) {install.packages("foreach")}
+
+
+#Loads necessary packages
+require(dtwclust) #Package for DBA averaging
+require(TSclust)
+require(TSdist)
+require(dtw) #Package for DTW operations
+require(clusterSim)
+require(cluster)
+require(TTR)
+require(RSNNS) #Package for ART1 Neural Network
+require(foreach) #Package for parallel processing if wanted
+
+#Reads parameters that were creating in the python GUI
+parameters = read.csv("Script_Parameters.csv", header=FALSE,stringsAsFactors=FALSE)
+
+#Establishes the parameters within the parameters CSV file
+Datafile.name = parameters[1,1]
+name.ofTest = paste(parameters[1,2],'\\',parameters[1,3],sep='')
+int.polation = parameters[1,4]
+win.size = parameters[1,5]
+max.clust = parameters[1,6]
+greater.than.or.equal.to = parameters[1,7]
+percentage.range = parameters[1,8]
+max.iter = parameters[1,9]
+vigilance.param = parameters[1,10]
+picture.rows = as.integer(parameters[1,11])
+picture.columns = as.integer(parameters[1,12])
+
+#Name of the file for the distance matrix that will be created and saved
+save1 = paste(name.ofTest,"Distance_Matrix-",int.polation,"_Window_Size-",win.size,".RData",sep="")
+#Tries to load the distance matrix if one exists
+try(load(save1))
+
+
+#Generic naming template for "counting" files
+name.count = "_Number_of_sets_per_cluster_"
+
+
+#Assorted naming parameters for saving files
+#Taking parameters and converting to text
+percent.name = (1 - percentage.range) * 100
+clust.name = max.clust
+more.than.name = greater.than.or.equal.to
+specific.name = paste("_top-", percent.name, "_max_clusters-", clust.name, "_more_than-", more.than.name,"_vigilance-",vigilance.param, sep="")
+
+
+#Makes sure the script will save the files to the correct directory
+#Helps ensure that you do not make the distance matrix and lose all of your data when it tries to save and can't
+testtest = c(1,2,3,4,5,6,7)
+testtesttest = paste(name.ofTest, "checking_file.RData")
+save(testtest, file=testtesttest)
+
+
+#Names of the files created for the results of the clustering pipe-line
+#One file for the results, one for how many were in each cluster, and one for the averaged image
+name.initial1 = paste(name.ofTest, "NN_Training_Results", specific.name,".txt", sep="")
+name.initial2 = paste(name.ofTest, "NN_Training_Results_Count", specific.name,".txt", sep="")
+
+name.clustering1 = paste(name.ofTest, "Cluster_Images_Training_","int-", int.polation,"_win-",win.size,specific.name,".png", sep = "")
+
+
+
+
+
+
+
+
+
+################DTW Results################
+function1.result = function(x, save){
+  
+  data.matrix = x
+  
+  #Creates new matrix to save DTW distance results in
+  result = matrix(data=NA, nrow = length(data.matrix[1,]), ncol = length(data[1,]))
+  
+  #For every element in result
+  for (i in 1:length(data.matrix[1,])) { 
+    for (j in 1:length(data.matrix[1,])) {
+      #Skip redundent measurment by only creating half of the matrix
+      if (j >= i){
+        next
+      }
+      
+      #Raw data striped of NA elements 
+      G1 = data.matrix[,i][1:length(which(!is.na(data.matrix[,i])))]
+      G2 = data.matrix[,j][1:length(which(!is.na(data.matrix[,j])))]
+      
+      #Interpolate data
+      G1 = approx(seq(1,length(G1),1), y = G1, method="linear", n=int.polation,rule = 2, f = 1, ties = mean)
+      G2 = approx(seq(1,length(G2),1), y = G2, method="linear", n=int.polation,rule = 2, f = 1, ties = mean)
+      
+      G1.x = G1$x
+      G1.y = G1$y
+      
+      G2.x = G2$x
+      G2.y = G2$y
+      
+      #Compute and temporarily save DTW operation for extracting distance
+      a = dtw(G1.y,G2.y,dist.method="Euclidean",step=symmetric1, keep=TRUE, window.type=slantedBandWindow,window.size=win.size)
+      
+      #Save DTW distance to appropriate element in result
+      result[i,j] = a$distance
+    }
+  }
+  #Save the result matrix to file and return the matrix to the variable the function was assigned to
+  save(result, file = save)
+  return(result)
+}
+
+
+#### Furture work could make this process faster with parallel processing --Frame work provided--
+#### Check Processor Usage When Running This Code!!! Be weary not to max out CPU usage as it can cause damgage!!!
+function1.1.result = function(x, save){
+  
+  data.matrix = x
+  
+  
+  foreach(i=1:length(data.matrix[1,]), .combine = 'cbind') %:%
+    foreach(j=1:length(data.matrix[1,]), .export=c("int.polation", "win.size"), .packages='dtw', .combine = 'c') %dopar% {
+      if (j <= i){
+        NA
+      }
+      
+      
+      else{
+        G1 = data.matrix[,i][1:length(which(!is.na(data.matrix[,i])))]
+        G2 = data.matrix[,j][1:length(which(!is.na(data.matrix[,j])))]
+        
+        
+        G1 = approx(seq(1,length(G1),1), y = G1, method="linear", n=int.polation,rule = 2, f = 1, ties = mean)
+        G2 = approx(seq(1,length(G2),1), y = G2, method="linear", n=int.polation,rule = 2, f = 1, ties = mean)
+        
+        G1.x = G1$x
+        G1.y = G1$y
+        
+        G2.x = G2$x
+        G2.y = G2$y
+        
+        a = dtw(G1.y,G2.y,dist.method="Euclidean",step=symmetric1, keep=TRUE, window.type=slantedBandWindow,window.size=win.size)
+        
+        
+        a$distance
+      }
+    }
+}
+
+
+################Normalize################
+#Normalizes each column in a matrix from 0-1 
+function3.MatrixNormalize = function(x) {
+  data = x
+  for (i in 1:length((data[1,]))) {
+    f = data[, i][1:length(which(!is.na(data[, i])))]
+    data.norm = data.Normalization(f, type = "n4", normalization = "column")
+    dist.f = length(data[, i]) - length(which(!is.na(data[, i])))
+    data.norm = c(data.norm, matrix(data = NA,nrow = 1,ncol = dist.f))
+    data[,i] = data.norm
+  }
+  return(data)
+}
+
+
+################Create Average DTW################
+function5.GraphAverage = function(x, name1, name2, name3){
+  #Import already created data (data matrix, clustered bursts, number of bursts in cluster)
+  data = x
+  table = read.table(name1)
+  count = read.table(name2)
+  
+
+  #Start creating the PNG file
+  png(name3, width=1500, height=1000)
+  
+  #Extract useable data from clustered burst data file
+  table = table[2:length(table[,1]),]
+  
+  #Code that can be used to automate the picture parameters to a degree (rounds numbers up instead of down)
+  roundUpNice <- function(x, nice=c(1,2,4,6,8,10)) {
+    if(length(x) != 1) stop("'x' must be of length 1")
+    10^floor(log10(x)) * nice[[which(x <= 10^floor(log10(x)) * nice)[[1]]]]
+  }
+  #roundUpNice(max(table[,2]))/4)
+  
+  #Specify the number of rows and columns for the PNG file
+  par(mfrow=c(picture.rows,picture.columns))
+  
+  
+  #Normalize data just incase it has not been done
+  data = function3.MatrixNormalize(data)
+  
+  
+  #For every burst check if that burst is in a cluster, if so then add information to list 
+  #DBA average and graph the resulting full list of burst
+  for (x in seq(1,max(table[,2]),1)){
+    #If cluster does not have any bursts skip the cluster
+    if (count[x,] == 0){
+      next
+    }
+    #If the cluster does not have more than X number of bursts skip the cluster
+    if (count[x,] < greater.than.or.equal.to){
+      next
+    }
+    
+    #Set cluster to check for and a stage check
+    cluster.number = x
+    clear.check = 1
+    
+    #For every burst in the cluster list
+    for (i in seq(1:length(table[,1]))){
+      #If the cluster value in list is the same as the cluster.number
+      if (cluster.number == table[i,2]){
+        #If the stage check is not cleared then create a new matrix with the information of the first burst
+        if (clear.check != 1){
+          G1 = data[,i][1:length(which(!is.na(data[,i])))]
+          
+          X1 = seq(1,length(G1),1)
+          G1 = approx(seq(1,length(G1),1), y = G1, method="linear", n=int.polation,rule = 3, f = 1, ties = mean)
+          cluster.list = cbind(cluster.list,G1$y)
+        }
+        
+        #If the stage check is cleared then add the information to the cluster matrix
+        if (clear.check == 1){
+          G1 = data[,i][1:length(which(!is.na(data[,i])))]
+          
+          X1 = seq(1,length(G1),1)
+          G1 = approx(seq(1,length(G1),1), y = G1, method="linear", n=int.polation,rule = 3, f = 1, ties = mean)
+          cluster.list = matrix(G1$y)
+          clear.check = 100
+        }
+      }
+    }
+    
+    
+    #DBA average the cluster.list
+    DBA = DBA(t(cluster.list),step=symmetric1, keep=TRUE,window.type=slantedBandWindow,window.size=win.size)
+    
+    
+    #Bin smooth the DBA by 3 (Enough to have better definition but not enough to significantly effect the result)
+    DBA = SMA(DBA,n=3)
+    
+    
+    #Plot DBA to PNG graph
+    plot(seq(1,length(DBA),1),main=paste("Cluster ",cluster.number),DBA,type="l",col="blue",xlab=paste("Count:  ",count[x,]), ylab="Normalized Fluorescence Intensity",cex.lab=1.5)
+  }
+  dev.off()
+}
+
+
+#####################################################
+#####################################################
+###############Create Distance Matrix################
+#####################################################
+#####################################################
+
+
+#Import burst matrix file
+data = read.csv(Datafile.name, header=TRUE)
+
+#Normalize, column-wise, data matrix
+data = function3.MatrixNormalize(data)
+
+
+#Create distance matrix if needed
+if (exists("result") == FALSE){
+  tic=proc.time()[3]
+  result = function1.result(data, save1)
+  tic.stop = proc.time()[3] - tic
+  time1 = tic.stop
+  time1
+}
+
+
+#####################################################
+#####################################################
+###############Cluster Distance Matrix###############
+#####################################################
+#####################################################
+
+
+#Save the length of the result for easy access
+length.result = length(result[1,])
+
+#Create full distance matrix by simply reflecting the distance matrix data across the matrix
+result.2 = matrix(data=NA, nrow = length.result, ncol = length.result)
+
+for (i in 1:length.result) { 
+  for (j in 1:length.result) {
+    if (j == i){     
+      result.2[i,j] = 0
+      next
+    }
+    result.2[i,j] = result[i,j]
+    result.2[j,i] = result[i,j]
+  }
+}
+
+#Another way to normalize the data; normalize by each column 
+# for (i in 1:length.result) {
+#   for (j in 1:length.result) {
+#     if (j == i){
+#       result.2[i,j] = min(result.2[,j][result.2[,j]!=min(result.2[,j])] )
+#       next
+#     }
+#   }
+# }
+#result.2.1 = t(function3.MatrixNormalize(result.2))
+
+#Nomralize matrix from 0-1 by minimum (0) to maximum of the entire matrix
+result.2.1 = matrix(data=NA, nrow = length.result, ncol = length.result)
+
+result.min = min(result.2)
+result.max = max(result.2)
+
+for (i in 1:length(result.2.1[,1])){
+  for (j in 1:length(result.2.1[,1])){
+    result.2.1[i,j] = (result.2[i,j]-result.min)/(result.max-result.min)
+    
+  }
+}
+
+
+#Makes the small values the largest values
+#Done for logic (taking the top percentile 85th percentile = top 15% etc.)
+result.2.2 = matrix(data=NA, nrow = length.result, ncol = length.result)
+
+for (i in seq(1:length.result)){
+  for (j in seq(1:length.result)){
+    result.2.2[i,j] = 1 - result.2.1[i,j]
+  }
+}
+
+
+#Converts distance matrix into binary distance matrix for a given percentile
+result.2.3 = matrix(data=NA, nrow = length.result, ncol = length.result)
+
+for (i in seq(1:length.result)){
+  for (j in seq(1:length.result)){
+    if (result.2.2[i,j] >= percentage.range){
+      result.2.3[i,j] = 1
+    }
+    if(result.2.2[i,j] <= percentage.range){
+      result.2.3[i,j] = 0
+    }
+  }
+}
+
+
+#####################################################
+#####################################################
+#################ART1 NEURAL NETWORK#################
+#####################################################
+#####################################################
+
+
+length.result = length(result[1,])
+
+#Vigilance parameter to use
+update.learn =  c(vigilance.param)
+
+model = art1(result.2.3, dimX=length.result, dimY=1,learnFuncParams = update.learn, updateFuncParams = update.learn, f2Units=max.clust, updateFunc = "ART1_Stable", maxit = max.iter)
+encodeClassLabels(model$fitted.values)
+
+
+#####################################################
+#####################################################
+##########Create Cluster Files and Averages##########
+#####################################################
+#####################################################
+
+
+#Clusters produced by ART1 neural network
+predictions = model$fitted.values
+
+
+#Clears variables to negate possible error
+rm(table.NN1, table.NN2)
+
+#Establish matrix contining the burst name and cluster number
+for (i in 1){
+  for (j in 1:length(predictions[1,])){
+    if (predictions[i,j] > 0){
+      table.NN1 = t(rbind(colnames(data)[1], j))
+      next
+      
+    }
+  }
+}
+
+#Create full matrix contining the burst name and cluster number
+for (i in 1:length(predictions[,1])){
+  set = 0
+  for (j in 1:length(predictions[i,])){
+    if (j==length(predictions[i,])){
+      if (predictions[i,j] == 0){
+        if (set == 0){
+          table.NN2 = t(rbind(colnames(data)[i], as.numeric(j)))
+          table.NN1 = rbind(table.NN1, table.NN2)
+        }
+      }
+    }
+    if (predictions[i,j] > 0){
+      table.NN2 = t(rbind(colnames(data)[i], as.numeric(j)))
+      table.NN1 = rbind(table.NN1, table.NN2)
+      set = 1
+      next
+    }
+    
+  }
+}
+
+#Establish count matrix
+count.list = sum(table.NN1[,2] == 1)
+
+#Create full count matrix
+for (i in seq(2,max(as.numeric(table.NN1[,2])))){
+  count.list = rbind(count.list, sum(table.NN1[,2] == i))
+}
+
+
+#Save clustering matrices to files 
+table.NN1 = matrix(table.NN1,ncol = 2, dimnames = NULL)
+
+write.matrix(table.NN1, file = name.initial1)
+write.matrix(count.list, file= name.initial2)
+
+
+#Create and save picture of DBA averages
+function5.GraphAverage(data, name.initial1, name.initial2, name.clustering1)
+
+```
+
