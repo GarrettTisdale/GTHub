@@ -546,7 +546,7 @@ class StartPage(tk.Frame):
 
 
                     #Determining where to extract each burst in a trace
-                    #Summarized as if 1 append to appropriate d_List dictionary
+                    #Summarized as: if 1 append to appropriate d_List dictionary
                     #else dont, but if begging or ending add 3 to appropiate end
                     for i in range(0,len(HMM)):
                         if HMM[i] == 1:
@@ -1045,9 +1045,9 @@ class PageTwo(tk.Frame):
 
         TXT_File_Name.insert(END, os.path.dirname(os.path.realpath(__file__)) + tempslash + 'Script_Workspace' + tempslash +
                          'Full_Test_NN_Training_Results_top-5_max_clusters-80_more_than-5_vigilance-0.txt')
-        CSV1_File_Name.insert(END, os.path.dirname(os.path.realpath(__file__)) + tempslash + 'Script_Workspace' + tempslash +
+        CSV1_File_Name.insert(END, os.path.dirname(os.path.realpath(__file__)) + tempslash +
                          'Compiled_Matrix_Frames.csv')
-        CSV2_File_Name.insert(END, os.path.dirname(os.path.realpath(__file__)) + tempslash + 'Script_Workspace' + tempslash +
+        CSV2_File_Name.insert(END, os.path.dirname(os.path.realpath(__file__)) + tempslash +
                          'Compiled_Matrix_Intensity.csv')
         New_File_Name.insert(END, 'Clustering_Statistics_Data.csv')
 
